@@ -52,15 +52,18 @@ def solve_shopping_problem(items_needed, item_id_to_url, offer_catalog, offer_id
     # Variables
     x = LpVariable.dicts("buy", offer_ids, 0, None, LpInteger)
     y = LpVariable.dicts("use_seller", sellers, 0, 1, LpBinary)
-    q = LpVariable.dicts("qty_seller", sellers, lowBound=0)
+    q = LpVariable.dicts("qty_seller", sellers, 0, 40)
     z1 = LpVariable.dicts("small_del", sellers, 0, 1, LpBinary)
     z2 = LpVariable.dicts("med_del", sellers, 0, 1, LpBinary)
-    z3 = LpVariable.dicts("big_del", sellers, 0, 1, LpBinary)
+    # z3 = LpVariable.dicts("big_del", sellers, 0, 1, LpBinary)
 
     # Objective: item cost + delivery
     prob += (
         lpSum(x[o] * offer_catalog[o]["cost"] for o in offer_ids) +
-        lpSum(SMALL_DEL * z1[s] + MED_DEL * z2[s] + BIG_DEL * z3[s] for s in sellers)
+        lpSum(
+            SMALL_DEL * z1[s] + MED_DEL * z2[s] #+ BIG_DEL * z3[s]
+            for s in sellers
+        )
     )
 
     # Demand constraints
@@ -80,17 +83,18 @@ def solve_shopping_problem(items_needed, item_id_to_url, offer_catalog, offer_id
 
     # Delivery tier constraints with Big M logic
     for s in sellers:
-        prob += z1[s] + z2[s] + z3[s] == y[s]
+        prob += (z1[s] + z2[s] #+ z3[s]
+                == y[s])
 
         # If z1 = 1 → q < SMALL_MED_SWITCH_OVER_BOUNDARY
         prob += q[s] <= SMALL_MED_SWITCH_OVER_BOUNDARY - 1 + (1 - z1[s]) * BIG_M
 
         # If z2 = 1 → SMALL_MED_SWITCH_OVER_BOUNDARY <= q < MED_BIG_SWITCH_OVER_BOUNDARY
         prob += q[s] >= SMALL_MED_SWITCH_OVER_BOUNDARY * z2[s]
-        prob += q[s] <= MED_BIG_SWITCH_OVER_BOUNDARY - 1 + (1 - z2[s]) * BIG_M
+        # prob += q[s] <= MED_BIG_SWITCH_OVER_BOUNDARY - 1 + (1 - z2[s]) * BIG_M
 
-        # If z3 = 1 → q >= MED_BIG_SWITCH_OVER_BOUNDARY
-        prob += q[s] >= MED_BIG_SWITCH_OVER_BOUNDARY * z3[s]
+        # # If z3 = 1 → q >= MED_BIG_SWITCH_OVER_BOUNDARY
+        # prob += q[s] >= MED_BIG_SWITCH_OVER_BOUNDARY * z3[s]
 
     print("Solving...")
     prob.solve(PULP_CBC_CMD(msg=True))
@@ -112,16 +116,14 @@ def solve_shopping_problem(items_needed, item_id_to_url, offer_catalog, offer_id
     for s in sellers:
         z1_val = z1[s].varValue or 0
         z2_val = z2[s].varValue or 0
-        z3_val = z3[s].varValue or 0
+        # z3_val = z3[s].varValue or 0
 
         if round(z1_val) == 1:
             delivery_costs[s] = SMALL_DEL
         elif round(z2_val) == 1:
             delivery_costs[s] = MED_DEL
-        elif round(z3_val) == 1:
-            delivery_costs[s] = BIG_DEL
-        else:
-            delivery_costs[s] = 0
+        # elif round(z3_val) == 1:
+        #     delivery_costs[s] = BIG_DEL
 
     # Calculate total cost
     total_cost = sum(
