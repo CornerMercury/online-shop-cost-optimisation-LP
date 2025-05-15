@@ -52,7 +52,7 @@ def solve_shopping_problem(items_needed, item_id_to_url, offer_catalog, offer_id
     # Variables
     x = LpVariable.dicts("buy", offer_ids, 0, None, LpInteger)
     y = LpVariable.dicts("use_seller", sellers, 0, 1, LpBinary)
-    q = LpVariable.dicts("qty_seller", sellers, 0, None, LpInteger)
+    q = LpVariable.dicts("qty_seller", sellers, lowBound=0)
     z1 = LpVariable.dicts("small_del", sellers, 0, 1, LpBinary)
     z2 = LpVariable.dicts("med_del", sellers, 0, 1, LpBinary)
     z3 = LpVariable.dicts("big_del", sellers, 0, 1, LpBinary)
@@ -93,7 +93,7 @@ def solve_shopping_problem(items_needed, item_id_to_url, offer_catalog, offer_id
         prob += q[s] >= MED_BIG_SWITCH_OVER_BOUNDARY * z3[s]
 
     print("Solving...")
-    prob.solve(PULP_CBC_CMD(msg=False))
+    prob.solve(PULP_CBC_CMD(msg=True))
 
     if LpStatus[prob.status] != "Optimal":
         print("No optimal solution found.")

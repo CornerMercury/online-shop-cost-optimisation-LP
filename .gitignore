@@ -3,3 +3,4 @@ carts/
 webscraper.py
 .idea/
 __pycache__/
+*.log
