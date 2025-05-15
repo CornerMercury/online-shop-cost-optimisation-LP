@@ -1,4 +1,4 @@
 .jsonCarts/*
 carts/
-webscraper/
+webscraper.py
 .idea/

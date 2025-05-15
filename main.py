@@ -4,7 +4,6 @@ from collections import defaultdict
 from constants import *
 import argparse
 
-JSON_DIR = ".jsonCarts/"
 BIG_M = 100000
 
 def load_cart(json_path):
