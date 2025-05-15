@@ -2,3 +2,4 @@
 carts/
 webscraper.py
 .idea/
+__pycache__/
