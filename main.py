@@ -1,13 +1,10 @@
 import json
 from pulp import *
 from collections import defaultdict
+from constants import *
+import argparse
 
-INPUT_JSON = ".jsonCarts/floocore.json"
-SMALL_DEL = 134
-SMALL_MED_SWITCH_OVER_BOUNDARY = 5
-MED_DEL = 261
-MED_BIG_SWITCH_OVER_BOUNDARY = 41
-BIG_DEL = 310
+JSON_DIR = ".jsonCarts/"
 BIG_M = 100000
 
 def load_cart(json_path):
@@ -86,12 +83,12 @@ def solve_shopping_problem(items_needed, item_id_to_url, offer_catalog, offer_id
     for s in sellers:
         prob += z1[s] + z2[s] + z3[s] == y[s]
 
-        # If z1 = 1 → q < SMALL_MED_SWITCH_OVER_BOUNDARY = 5
-        prob += q[s] < SMALL_MED_SWITCH_OVER_BOUNDARY + (1 - z1[s]) * BIG_M
+        # If z1 = 1 → q < SMALL_MED_SWITCH_OVER_BOUNDARY
+        prob += q[s] <= SMALL_MED_SWITCH_OVER_BOUNDARY - 1 + (1 - z1[s]) * BIG_M
 
         # If z2 = 1 → SMALL_MED_SWITCH_OVER_BOUNDARY <= q < MED_BIG_SWITCH_OVER_BOUNDARY
         prob += q[s] >= SMALL_MED_SWITCH_OVER_BOUNDARY * z2[s]
-        prob += q[s] < MED_BIG_SWITCH_OVER_BOUNDARY + (1 - z2[s]) * BIG_M
+        prob += q[s] <= MED_BIG_SWITCH_OVER_BOUNDARY - 1 + (1 - z2[s]) * BIG_M
 
         # If z3 = 1 → q >= MED_BIG_SWITCH_OVER_BOUNDARY
         prob += q[s] >= MED_BIG_SWITCH_OVER_BOUNDARY * z3[s]
@@ -136,7 +133,6 @@ def solve_shopping_problem(items_needed, item_id_to_url, offer_catalog, offer_id
     return assignment, delivery_costs, total_cost
 
 def print_result(assignment, delivery_costs, total_cost, item_id_to_url, offer_catalog):
-    print("\nOptimal Cart:\n")
     total_delivery_cost = 0
     for seller, orders in assignment.items():
         print(f"Seller: {seller}")
@@ -148,6 +144,7 @@ def print_result(assignment, delivery_costs, total_cost, item_id_to_url, offer_c
             item_total += qty * cost
             total_qty += qty
             print(f" x{qty} €{cost / 100:.2f} {url}")
+
         delivery = delivery_costs.get(seller, 0)
         total_delivery_cost += delivery
         print(f"Total Items: {total_qty}\n")
@@ -155,7 +152,7 @@ def print_result(assignment, delivery_costs, total_cost, item_id_to_url, offer_c
     print(f"Delivery Cost: €{total_delivery_cost / 100:.2f}")
     print(f"Total Cost (including delivery): €{total_cost / 100:.2f}")
 
-def main():
+def solve(file_name):
     (
         items_needed,
         item_id_to_url,
@@ -163,7 +160,7 @@ def main():
         offer_ids,
         offer_to_seller,
         seller_to_offers
-    ) = load_cart(INPUT_JSON)
+    ) = load_cart(JSON_DIR+file_name)
 
     for item_id in items_needed:
         total_available = sum(
@@ -188,6 +185,19 @@ def main():
     if result:
         assignment, delivery_costs, total_cost = result
         print_result(assignment, delivery_costs, total_cost, item_id_to_url, offer_catalog)
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Loads and solves a JSON file"
+    )
+
+    parser.add_argument(
+        "json_file",
+        type=str,
+        help="The JSON file to be solved."
+    )
+    args = parser.parse_args()
+    solve(args.json_file)
 
 if __name__ == "__main__":
     main()
