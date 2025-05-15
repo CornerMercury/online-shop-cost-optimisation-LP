@@ -2,10 +2,12 @@ import json
 from pulp import *
 from collections import defaultdict
 
-INPUT_JSON = ".jsonCarts/flooFullExodia.json"
-SMALL_DEL = 132
-MED_DEL = 237
-BIG_DEL = 2000
+INPUT_JSON = ".jsonCarts/floocore.json"
+SMALL_DEL = 134
+SMALL_MED_SWITCH_OVER_BOUNDARY = 5
+MED_DEL = 261
+MED_BIG_SWITCH_OVER_BOUNDARY = 41
+BIG_DEL = 310
 BIG_M = 100000
 
 def load_cart(json_path):
@@ -84,18 +86,18 @@ def solve_shopping_problem(items_needed, item_id_to_url, offer_catalog, offer_id
     for s in sellers:
         prob += z1[s] + z2[s] + z3[s] == y[s]
 
-        # If z1 = 1 → q <= 4
-        prob += q[s] <= 4 + (1 - z1[s]) * BIG_M
+        # If z1 = 1 → q < SMALL_MED_SWITCH_OVER_BOUNDARY = 5
+        prob += q[s] < SMALL_MED_SWITCH_OVER_BOUNDARY + (1 - z1[s]) * BIG_M
 
-        # If z2 = 1 → 5 <= q <= 20
-        prob += q[s] >= 5 * z2[s]
-        prob += q[s] <= 20 + (1 - z2[s]) * BIG_M
+        # If z2 = 1 → SMALL_MED_SWITCH_OVER_BOUNDARY <= q < MED_BIG_SWITCH_OVER_BOUNDARY
+        prob += q[s] >= SMALL_MED_SWITCH_OVER_BOUNDARY * z2[s]
+        prob += q[s] < MED_BIG_SWITCH_OVER_BOUNDARY + (1 - z2[s]) * BIG_M
 
-        # If z3 = 1 → q >= 21
-        prob += q[s] >= 21 * z3[s]
+        # If z3 = 1 → q >= MED_BIG_SWITCH_OVER_BOUNDARY
+        prob += q[s] >= MED_BIG_SWITCH_OVER_BOUNDARY * z3[s]
 
     print("Solving...")
-    prob.solve(PULP_CBC_CMD(msg=True))
+    prob.solve(PULP_CBC_CMD(msg=False))
 
     if LpStatus[prob.status] != "Optimal":
         print("No optimal solution found.")
@@ -148,14 +150,11 @@ def print_result(assignment, delivery_costs, total_cost, item_id_to_url, offer_c
             print(f" x{qty} €{cost / 100:.2f} {url}")
         delivery = delivery_costs.get(seller, 0)
         total_delivery_cost += delivery
-        print(f"Total Items: {total_qty}")
-        print(f"Items Total: €{item_total / 100:.2f}")
-        print(f"Delivery Cost: €{delivery / 100:.2f}\n")
+        print(f"Total Items: {total_qty}\n")
 
     print(f"Delivery Cost: €{total_delivery_cost / 100:.2f}")
     print(f"Total Cost (including delivery): €{total_cost / 100:.2f}")
 
-# === Main ===
 def main():
     (
         items_needed,
@@ -166,16 +165,15 @@ def main():
         seller_to_offers
     ) = load_cart(INPUT_JSON)
 
-    print("\n🔍 Checking availability:")
     for item_id in items_needed:
         total_available = sum(
             offer_catalog[o]["available"]
             for o in offer_ids
             if offer_catalog[o]["item_id"] == item_id
         )
-        print(f"  - {item_id_to_url[item_id]}: need {items_needed[item_id]}, available {total_available}")
         if total_available < items_needed[item_id]:
-            print("    ❌ Not enough stock!")
+            print("Not enough stock!")
+            print(f"  - {item_id_to_url[item_id]}: need {items_needed[item_id]}, available {total_available}")
             return
 
     result = solve_shopping_problem(
